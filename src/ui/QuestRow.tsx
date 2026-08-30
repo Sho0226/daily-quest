@@ -14,12 +14,21 @@ type QuestRowProps = {
   def: QuestDef;
   value: number;
   target: number;
+  locked?: boolean;
   onIncrement: (amount: number) => void;
   onAchieve: () => void;
   onSetValue: (value: number) => void;
 };
 
-export function QuestRow({ def, value, target, onIncrement, onAchieve, onSetValue }: QuestRowProps) {
+export function QuestRow({
+  def,
+  value,
+  target,
+  locked = false,
+  onIncrement,
+  onAchieve,
+  onSetValue,
+}: QuestRowProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -52,6 +61,21 @@ export function QuestRow({ def, value, target, onIncrement, onAchieve, onSetValu
 
   function cancel() {
     setEditing(false);
+  }
+
+  if (locked) {
+    return (
+      <div className="quest locked">
+        <div className="quest-top">
+          <div className="quest-name">
+            <span className="quest-tag">{def.tag}</span>
+            <span className="quest-jp">{def.label}</span>
+          </div>
+          <div className="quest-locked-mark mono">未解放</div>
+        </div>
+        <p className="quest-locked-note">第2週から解放されます</p>
+      </div>
+    );
   }
 
   return (
