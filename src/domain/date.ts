@@ -16,6 +16,29 @@ export function previousDayKey(key: string): string {
   return format(d, 'yyyy-MM-dd');
 }
 
+/** The `count` most recent day keys ending at `endKey` (inclusive), oldest first. */
+export function recentDayKeys(endKey: string, count: number): string[] {
+  const keys: string[] = [];
+  let cursor = endKey;
+  for (let i = 0; i < count; i++) {
+    keys.push(cursor);
+    cursor = previousDayKey(cursor);
+  }
+  return keys.reverse();
+}
+
+/** Day-of-week for a day key, 0=Sunday. */
+export function dayOfWeek(key: string): number {
+  return new Date(`${key}T00:00:00`).getDay();
+}
+
+/** Whole days from `fromKey` to `toKey`; negative if `toKey` is earlier. */
+export function daysBetween(fromKey: string, toKey: string): number {
+  const from = new Date(`${fromKey}T00:00:00`).getTime();
+  const to = new Date(`${toKey}T00:00:00`).getTime();
+  return Math.round((to - from) / 86_400_000);
+}
+
 /** The next boundary instant strictly after `date`. */
 export function nextBoundary(date: Date, boundaryHour: number): Date {
   const b = new Date(date);

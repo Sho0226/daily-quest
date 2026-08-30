@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
+  activeQuests,
   capFor,
   clampValue,
+  emptyDayRecord,
   isDayCleared,
   isDayRecorded,
   isQuestCapped,
   isQuestCleared,
+  type DayRecord,
 } from '../quests';
+
+function day(partial: Partial<DayRecord>): DayRecord {
+  return { ...emptyDayRecord(), ...partial };
+}
 
 describe('capFor', () => {
   it('is 1.5x target for whole-number quests, floored', () => {
@@ -45,23 +52,49 @@ describe('isQuestCleared / isQuestCapped', () => {
   });
 });
 
-describe('isDayRecorded / isDayCleared', () => {
-  const targets = { pushups: 50, situps: 50, squats: 50, run: 5 };
-
-  it('a day with all zeros is not recorded', () => {
-    expect(isDayRecorded({ pushups: 0, situps: 0, squats: 0, run: 0 })).toBe(false);
+describe('isDayRecorded', () => {
+  it('a day with all zeros and no soreness answer is not recorded', () => {
+    expect(isDayRecorded(emptyDayRecord())).toBe(false);
   });
 
-  it('a day with any nonzero value is recorded', () => {
-    expect(isDayRecorded({ pushups: 0, situps: 0, squats: 0, run: 0.5 })).toBe(true);
+  it('a day with any nonzero quest value is recorded', () => {
+    expect(isDayRecorded(day({ run: 0.5 }))).toBe(true);
+  });
+
+  it('answering soreness alone counts as recorded, even at level 0', () => {
+    expect(isDayRecorded(day({ doms: 0 }))).toBe(true);
+  });
+
+  it('a completed recovery quest counts as recorded', () => {
+    expect(isDayRecorded(day({ recovery: true, recoveryDone: true }))).toBe(true);
   });
 
   it('undefined day is not recorded', () => {
     expect(isDayRecorded(undefined)).toBe(false);
   });
+});
 
-  it('is cleared only when every quest meets its target', () => {
-    expect(isDayCleared({ pushups: 50, situps: 50, squats: 50, run: 4.9 }, targets)).toBe(false);
-    expect(isDayCleared({ pushups: 50, situps: 50, squats: 50, run: 5 }, targets)).toBe(true);
+describe('activeQuests', () => {
+  it('excludes running until it is unlocked', () => {
+    expect(activeQuests(false).map((q) => q.key)).toEqual(['pushups', 'situps', 'squats']);
+    expect(activeQuests(true)).toHaveLength(4);
+  });
+});
+
+describe('isDayCleared', () => {
+  const targets = { pushups: 50, situps: 50, squats: 50, run: 5 };
+
+  it('requires every unlocked quest to meet its target', () => {
+    expect(isDayCleared(day({ pushups: 50, situps: 50, squats: 50, run: 4.9 }), targets, true)).toBe(false);
+    expect(isDayCleared(day({ pushups: 50, situps: 50, squats: 50, run: 5 }), targets, true)).toBe(true);
+  });
+
+  it('ignores running while it is still locked', () => {
+    expect(isDayCleared(day({ pushups: 50, situps: 50, squats: 50, run: 0 }), targets, false)).toBe(true);
+  });
+
+  it('on a recovery day, clearing means finishing the recovery quest', () => {
+    expect(isDayCleared(day({ recovery: true, recoveryDone: false }), targets, true)).toBe(false);
+    expect(isDayCleared(day({ recovery: true, recoveryDone: true }), targets, true)).toBe(true);
   });
 });
