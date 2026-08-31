@@ -12,6 +12,7 @@ type FieldKey = (typeof FIELDS)[number]['key'];
 
 export function InitialTest() {
   const completeInitialTest = useDailyQuestStore((s) => s.completeInitialTest);
+  const [name, setName] = useState('');
   const [values, setValues] = useState<Record<FieldKey, string>>({
     maxPushups: '',
     maxSitups: '',
@@ -23,7 +24,9 @@ export function InitialTest() {
     maxSitups: parseInt(values.maxSitups, 10),
     maxSquats: parseInt(values.maxSquats, 10),
   };
-  const complete = FIELDS.every((f) => Number.isFinite(parsed[f.key]) && parsed[f.key] >= 0);
+  const complete =
+    name.trim().length > 0 &&
+    FIELDS.every((f) => Number.isFinite(parsed[f.key]) && parsed[f.key] >= 0);
 
   return (
     <div className="stage">
@@ -39,9 +42,21 @@ export function InitialTest() {
         </div>
 
         <p className="system-message">
-          システムがあなたの現在値を測定します。各種目を限界まで連続で行い、その回数を入力してください。
+          システムがあなたを登録し、現在値を測定します。各種目を限界まで連続で行い、その回数を入力してください。
           初期の目標はこの60%に設定されます。
         </p>
+
+        <label className="name-field">
+          <span className="name-label">名前</span>
+          <input
+            className="name-input"
+            type="text"
+            maxLength={20}
+            placeholder="ステータスに表示されます"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
 
         <div className="test-fields">
           {FIELDS.map((field) => {
@@ -81,7 +96,7 @@ export function InitialTest() {
             className="btn achieve full"
             disabled={!complete}
             onClick={() =>
-              completeInitialTest({
+              completeInitialTest(name, {
                 maxPushups: parsed.maxPushups,
                 maxSitups: parsed.maxSitups,
                 maxSquats: parsed.maxSquats,

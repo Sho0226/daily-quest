@@ -4,11 +4,13 @@ import type { StatBlock } from './stats';
 import type { Settings } from '../store/settings';
 
 /** Bump alongside the store's SCHEMA_VERSION whenever the persisted shape changes. */
-export const BACKUP_SCHEMA_VERSION = 4;
+export const BACKUP_SCHEMA_VERSION = 5;
 
 export type Backup = {
   schemaVersion: number;
   exportedAt: string;
+  /** Absent in exports written before names existed. */
+  name?: string;
   startedAt: string | null;
   dayBoundaryHour: number;
   testDayOfWeek: number;

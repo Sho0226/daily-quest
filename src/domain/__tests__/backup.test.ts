@@ -3,8 +3,9 @@ import { backupFilename, shouldRemindExport, type Backup } from '../backup';
 import { parseBackup } from '../backupSchema';
 
 const valid: Backup = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   exportedAt: '2026-08-31T04:00:00.000Z',
+  name: '水篠 旬',
   startedAt: '2026-08-01',
   dayBoundaryHour: 4,
   testDayOfWeek: 0,
@@ -70,6 +71,20 @@ describe('parseBackup', () => {
 
   it('accepts an older schema version', () => {
     expect(parseBackup(JSON.stringify({ ...valid, schemaVersion: 3 })).ok).toBe(true);
+  });
+
+  it('accepts an export written before names existed', () => {
+    const { name, ...withoutName } = valid;
+    void name;
+    const result = parseBackup(JSON.stringify({ ...withoutName, schemaVersion: 4 }));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.backup.name).toBeUndefined();
+  });
+
+  it('keeps the name on a round trip', () => {
+    const result = parseBackup(JSON.stringify(valid));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.backup.name).toBe('水篠 旬');
   });
 });
 

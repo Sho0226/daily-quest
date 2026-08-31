@@ -22,6 +22,7 @@ export function StatusWindow() {
   const tests = useDailyQuestStore((s) => s.tests);
   const allocated = useDailyQuestStore((s) => s.allocated);
   const titles = useDailyQuestStore((s) => s.titles);
+  const name = useDailyQuestStore((s) => s.name);
   const allocatePoint = useDailyQuestStore((s) => s.allocatePoint);
 
   const todayKey = dayKey(new Date(), dayBoundaryHour);
@@ -72,6 +73,10 @@ export function StatusWindow() {
         </div>
 
         <dl className="identity">
+          <div className="identity-row">
+            <dt>名前</dt>
+            <dd className="identity-name">{name || '—'}</dd>
+          </div>
           <div className="identity-row">
             <dt>職業</dt>
             <dd>{JOB}</dd>

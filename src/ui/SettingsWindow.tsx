@@ -14,6 +14,8 @@ export function SettingsWindow() {
   const setDayBoundaryHour = useDailyQuestStore((s) => s.setDayBoundaryHour);
   const setTestDayOfWeek = useDailyQuestStore((s) => s.setTestDayOfWeek);
   const reset = useDailyQuestStore((s) => s.reset);
+  const name = useDailyQuestStore((s) => s.name);
+  const setName = useDailyQuestStore((s) => s.setName);
 
   const [confirmingReset, setConfirmingReset] = useState(false);
 
@@ -29,6 +31,19 @@ export function SettingsWindow() {
           <p className="window-title">設定</p>
           <p className="window-sub mono">SETTINGS</p>
         </div>
+
+        <section className="setting-group">
+          <h2 className="setting-heading">名前</h2>
+          <p className="setting-note">ステータスウィンドウに表示されます。</p>
+          <input
+            className="name-input settings-name"
+            type="text"
+            maxLength={20}
+            placeholder="未設定"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </section>
 
         <section className="setting-group">
           <h2 className="setting-heading">1日の区切り</h2>

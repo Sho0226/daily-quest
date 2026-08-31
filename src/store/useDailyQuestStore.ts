@@ -27,7 +27,7 @@ import { isAtHardCap } from '../domain/progression';
 import { DEFAULT_SETTINGS, type Settings } from './settings';
 
 const STORAGE_KEY = 'daily-quest-v1';
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 type UndoEntry = {
   dayKey: string;
@@ -48,6 +48,8 @@ export type PendingRecoveryNotice = {
 
 type PersistedState = {
   schemaVersion: number;
+  /** Shown at the top of the status window, as in the source material. */
+  name: string;
   startedAt: string | null;
   dayBoundaryHour: number;
   testDayOfWeek: number;
@@ -75,7 +77,8 @@ type DailyQuestStore = PersistedState & {
   undoStack: UndoEntry[];
   pendingProgression: PendingProgression | null;
   pendingRecoveryNotice: PendingRecoveryNotice | null;
-  completeInitialTest: (test: Omit<TestResult, 'date'>) => void;
+  completeInitialTest: (name: string, test: Omit<TestResult, 'date'>) => void;
+  setName: (name: string) => void;
   recordTest: (test: Omit<TestResult, 'date'>) => void;
   increment: (questKey: QuestKey, amount: number) => void;
   achieve: (questKey: QuestKey) => void;
@@ -142,6 +145,7 @@ function applyValue(
 
 const initialState: PersistedState = {
   schemaVersion: SCHEMA_VERSION,
+  name: '',
   startedAt: null,
   dayBoundaryHour: 4,
   testDayOfWeek: 0,
@@ -168,11 +172,12 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
       pendingProgression: null,
       pendingRecoveryNotice: null,
 
-      completeInitialTest: (test) =>
+      completeInitialTest: (name, test) =>
         set((state) => {
           const key = todayKeyOf(state);
           const result: TestResult = { date: key, ...test };
           return {
+            name: name.trim(),
             startedAt: key,
             initialTest: result,
             tests: [result],
@@ -283,6 +288,8 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
       updateSettings: (patch) =>
         set((state) => ({ settings: { ...state.settings, ...patch } })),
 
+      setName: (name) => set({ name: name.trim() }),
+
       setDayBoundaryHour: (hour) => set({ dayBoundaryHour: hour }),
 
       setTestDayOfWeek: (day) => set({ testDayOfWeek: day }),
@@ -319,6 +326,7 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
         const backup: Backup = {
           schemaVersion: BACKUP_SCHEMA_VERSION,
           exportedAt,
+          name: state.name,
           startedAt: state.startedAt,
           dayBoundaryHour: state.dayBoundaryHour,
           testDayOfWeek: state.testDayOfWeek,
@@ -337,6 +345,7 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
 
       importBackup: (backup) =>
         set(() => ({
+          name: backup.name ?? '',
           startedAt: backup.startedAt,
           dayBoundaryHour: backup.dayBoundaryHour,
           testDayOfWeek: backup.testDayOfWeek,
@@ -408,6 +417,7 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
       version: SCHEMA_VERSION,
       partialize: (state): PersistedState => ({
         schemaVersion: state.schemaVersion,
+        name: state.name,
         startedAt: state.startedAt,
         dayBoundaryHour: state.dayBoundaryHour,
         testDayOfWeek: state.testDayOfWeek,
@@ -452,6 +462,11 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
         if (version < 4) {
           const old = persisted as PersistedState;
           return { ...initialState, ...old, settings: initialState.settings };
+        }
+        // v5 had no name.
+        if (version < 6) {
+          const old = persisted as PersistedState;
+          return { ...initialState, ...old, name: old.name ?? '' };
         }
         // v4 had no titles tracking or export timestamp.
         if (version < 5) {

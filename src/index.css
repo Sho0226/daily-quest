@@ -1606,3 +1606,52 @@ body::before {
     font-size: 8px;
   }
 }
+
+/* --- name --- */
+.name-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.name-label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.name-input {
+  width: 100%;
+  min-height: 44px;
+  background: var(--void-2);
+  border: 1px solid var(--border-dim);
+  color: var(--text-primary);
+  font-family: 'Chakra Petch', 'Noto Sans JP', sans-serif;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  padding: 10px 12px;
+}
+.name-input::placeholder {
+  color: var(--text-dim);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+.name-input:focus {
+  outline: none;
+  border-color: var(--border-glow);
+  box-shadow: 0 0 8px rgba(94, 200, 255, 0.3);
+}
+
+.settings-name {
+  margin-top: 2px;
+}
+
+.identity-name {
+  font-family: 'Chakra Petch', 'Noto Sans JP', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 10px rgba(94, 200, 255, 0.25);
+  overflow-wrap: anywhere;
+}

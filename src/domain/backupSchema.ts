@@ -43,6 +43,8 @@ const statBlockSchema = z.object({
 export const backupSchema = z.object({
   schemaVersion: z.number(),
   exportedAt: z.string(),
+  // Optional so exports written before names existed still import.
+  name: z.string().optional(),
   startedAt: z.string().nullable(),
   dayBoundaryHour: z.number().min(0).max(23),
   testDayOfWeek: z.number().min(0).max(6),
