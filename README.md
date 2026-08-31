@@ -1,32 +1,73 @@
-# React + TypeScript + Vite
+# デイリークエスト
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+『俺だけレベルアップな件』のシステムを再現した、個人用のトレーニング記録アプリ。
 
-Currently, two official plugins are available:
+原作の日課クエスト（腕立て伏せ・腹筋・スクワット・ランニング）を、現実の体で毎日実行できる量に落として記録する。目的は記録そのものではなく継続なので、設計判断はすべて「続くか」を第一基準、「安全か」を第二基準としている。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 設計上の判断
 
-## React Compiler
+原作準拠を優先しつつ、生理的に無理のある部分だけを変更している。
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **目標は原作の半分**。50/50/50・5km をハードキャップとする。100/100/100・10km は週70km相当で、毎日実行できる量ではない
+- **ペースを達成条件にしない**。疲労時にジョグや早歩きへ落として継続できるようにするため
+- **未達成に罰を与えない**。翌日への持ち越しもしない。未達の翌日に倍を課す運用が故障の主因になる
+- **目標の1.5倍で打ち止め**。「調子がいいから今日は倍」を記録上も評価しない
+- **連続記録は「達成日」ではなく「記録した日」で数える**。連続を守るために無理をする経路を構造的に塞ぐ
+- **休息はシステム側から提示する**。ユーザーに「休む」ボタンを押させない。押す行為が敗北感につながるため
 
-## Expanding the Oxlint configuration
+筋肉痛（DOMS）が3以上の日は、システムが自動で回復クエスト（ストレッチと20分の歩行）に差し替える。完了すれば達成と同じ経験値が入り、連続記録も維持される。休むことが損にならないようにしている。
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+疲労度は予測ではなく、直近の負荷が普段より跳ねていないかを見るダッシュボード兼演出として扱う。中止判断の一次情報は痛みの入力側にあり、数値が正常域でも痛みがあれば痛みが正しい。
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## 機能
+
+- 4種目のカウンター（加算ボタン／目標一括／直接入力／Undo）
+- 日付境界は午前4時（設定で変更可）
+- 5週間のチュートリアル解放。初回測定の60%から始め、週ごとに目標が上がる
+- 疲労度・筋肉痛・記録率のいずれかが基準を割ると、目標の自動更新を保留する
+- ステータスウィンドウ（レベル、経験値、能力値5項目、ポイント振り分け、称号）
+- 履歴（直近14日グリッド、月別集計）
+- JSONでの書き出し／読み込み
+- PWA。ホーム画面に追加してオフラインで動作
+- 高コントラストテーマ（屋外の直射日光下用）
+
+## 開発
+
+```sh
+npm install
+npm run dev          # 開発サーバー
+npm run dev -- --host  # 同一LANの実機から確認する場合
+npm run test         # ドメインロジックの単体テスト
+npm run lint
+npm run build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+疲労度と能力値は28日分のデータが貯まるまで意味のある値を返さない。開発時はステータス画面下部のDEVパネルから「ダミー履歴を30日生成」を実行する（本番ビルドには含まれない）。
+
+### 構成
+
+```
+src/
+  domain/    純関数のみ。DOM・状態に依存しない。テストはここに集中させる
+  store/     Zustand + persist（localStorage）
+  ui/        画面・コンポーネント
+```
+
+`domain/` を純関数に保つ制約だけは崩さない。日付境界、目標キャップ、連続記録、疲労度、能力値、解放判定、痛みによる差し替え判定は、すべてここで単体テストされている。
+
+## デプロイ
+
+main への push で GitHub Actions が lint・テスト・ビルドを通し、Cloudflare Workers へデプロイする。
+
+デプロイにはリポジトリのシークレットに `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` が必要。未設定の場合、検証だけ実行してデプロイはスキップされる。
+
+手動で出す場合:
+
+```sh
+wrangler login
+npm run deploy
+```
+
+## 免責
+
+このアプリは医療機器ではなく、医学的な判断を代替しない。すねの内側・膝・足裏の痛み、片側だけの鋭い痛み、72時間を超えて引かない痛みがある場合は中止し、続くようであれば医療機関を受診すること。
