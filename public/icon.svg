@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0e1526"/>
+      <stop offset="1" stop-color="#0b111e"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" fill="#05070d"/>
+  <rect x="76" y="76" width="360" height="360" fill="url(#panel)" stroke="#14263e" stroke-width="2"/>
+
+  <g stroke="#5ec8ff" stroke-width="14" fill="none" filter="url(#glow)">
+    <path d="M76 154 V76 H154"/>
+    <path d="M358 76 H436 V154"/>
+    <path d="M436 358 V436 H358"/>
+    <path d="M154 436 H76 V358"/>
+  </g>
+
+  <g filter="url(#glow)">
+    <rect x="150" y="196" width="212" height="16" fill="#5ec8ff"/>
+    <rect x="150" y="248" width="150" height="16" fill="#5ec8ff" opacity="0.55"/>
+    <rect x="150" y="300" width="98" height="16" fill="#e8c874"/>
+  </g>
+</svg>
