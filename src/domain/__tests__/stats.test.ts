@@ -3,6 +3,7 @@ import { recentDayKeys } from '../date';
 import type { TestResult } from '../progression';
 import { emptyDayRecord, type DayRecord, type Targets } from '../quests';
 import {
+  detectLevelUp,
   computeAgi,
   computeInt,
   computeSen,
@@ -197,5 +198,37 @@ describe('levelFromExp', () => {
 describe('spentPoints', () => {
   it('totals the allocation block', () => {
     expect(spentPoints({ str: 1, vit: 2, agi: 3, sen: 0, int: 4 })).toBe(10);
+  });
+});
+
+describe('detectLevelUp', () => {
+  it('adopts silently the first time, so a fresh install does not celebrate', () => {
+    expect(detectLevelUp(null, 1)).toEqual({ event: null, adopt: 1 });
+  });
+
+  it('adopts silently after a migration, whatever the level already is', () => {
+    expect(detectLevelUp(null, 14)).toEqual({ event: null, adopt: 14 });
+  });
+
+  it('says nothing when the level has not moved', () => {
+    expect(detectLevelUp(7, 7)).toEqual({ event: null, adopt: null });
+  });
+
+  it('announces a single level gained, with its points', () => {
+    expect(detectLevelUp(7, 8)).toEqual({
+      event: { from: 7, to: 8, gainedPoints: 3 },
+      adopt: null,
+    });
+  });
+
+  it('announces several levels at once as one event', () => {
+    expect(detectLevelUp(7, 10)).toEqual({
+      event: { from: 7, to: 10, gainedPoints: 9 },
+      adopt: null,
+    });
+  });
+
+  it('follows the level down without announcing, after an undo or an import', () => {
+    expect(detectLevelUp(9, 6)).toEqual({ event: null, adopt: 6 });
   });
 });

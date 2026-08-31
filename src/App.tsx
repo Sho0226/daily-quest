@@ -14,16 +14,19 @@ function App() {
   const highContrast = useDailyQuestStore((s) => s.settings.highContrast);
   const days = useDailyQuestStore((s) => s.days);
   const syncTitles = useDailyQuestStore((s) => s.syncTitles);
+  const syncLevel = useDailyQuestStore((s) => s.syncLevel);
   const [tab, setTab] = useState<TabKey>('quest');
 
   useEffect(() => {
     document.documentElement.dataset.contrast = highContrast ? 'high' : 'normal';
   }, [highContrast]);
 
-  // Titles are derived from history, so re-check whenever a record changes.
+  // Titles and level are derived from history, so re-check whenever a record changes.
   useEffect(() => {
-    if (initialTest) syncTitles();
-  }, [days, initialTest, syncTitles]);
+    if (!initialTest) return;
+    syncTitles();
+    syncLevel();
+  }, [days, initialTest, syncTitles, syncLevel]);
 
   if (!initialTest) return <InitialTest />;
 
@@ -45,10 +48,13 @@ function App() {
 function SystemNotifications() {
   const pendingProgression = useDailyQuestStore((s) => s.pendingProgression);
   const pendingRecoveryNotice = useDailyQuestStore((s) => s.pendingRecoveryNotice);
+  const pendingLevelUp = useDailyQuestStore((s) => s.pendingLevelUp);
   const acceptProgression = useDailyQuestStore((s) => s.acceptProgression);
   const declineProgression = useDailyQuestStore((s) => s.declineProgression);
   const dismissRecoveryNotice = useDailyQuestStore((s) => s.dismissRecoveryNotice);
+  const dismissLevelUp = useDailyQuestStore((s) => s.dismissLevelUp);
 
+  // Safety first, then the reward, then anything asking for a decision.
   if (pendingRecoveryNotice) {
     return (
       <NotificationWindow
@@ -59,6 +65,27 @@ function SystemNotifications() {
         }}
         onConfirm={dismissRecoveryNotice}
         onCancel={dismissRecoveryNotice}
+      />
+    );
+  }
+
+  if (pendingLevelUp) {
+    const levels =
+      pendingLevelUp.to - pendingLevelUp.from > 1
+        ? `LEVEL ${pendingLevelUp.from} → ${pendingLevelUp.to}`
+        : `LEVEL ${pendingLevelUp.to}`;
+    return (
+      <NotificationWindow
+        notification={{
+          kind: 'announce',
+          tone: 'levelup',
+          title: 'レベルが上がりました',
+          body: `ステータスポイントを${pendingLevelUp.gainedPoints}獲得しました。ステータス画面から振り分けられます。`,
+          detail: levels,
+          confirmLabel: '確認',
+        }}
+        onConfirm={dismissLevelUp}
+        onCancel={dismissLevelUp}
       />
     );
   }

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useDailyQuestStore } from '../store/useDailyQuestStore';
-import { playNotification } from './sound';
+import { playLevelUp, playNotification } from './sound';
 
 export type NotificationKind = 'confirm' | 'announce';
 
@@ -11,7 +11,7 @@ export type Notification = {
   detail?: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  tone?: 'normal' | 'caution';
+  tone?: 'normal' | 'caution' | 'levelup';
 };
 
 type NotificationWindowProps = {
@@ -27,9 +27,10 @@ export function NotificationWindow({ notification, onConfirm, onCancel }: Notifi
   const isConfirm = notification.kind === 'confirm';
 
   useEffect(() => {
-    playNotification(sound);
+    if (notification.tone === 'levelup') playLevelUp(sound);
+    else playNotification(sound);
     confirmRef.current?.focus();
-  }, [sound, notification.title]);
+  }, [sound, notification.tone, notification.title]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -47,7 +48,7 @@ export function NotificationWindow({ notification, onConfirm, onCancel }: Notifi
     <div className="notify-overlay" role="presentation">
       <div
         className={`notify${animations ? ' animate' : ''}${
-          notification.tone === 'caution' ? ' caution' : ''
+          notification.tone && notification.tone !== 'normal' ? ` ${notification.tone}` : ''
         }`}
         role="alertdialog"
         aria-modal="true"
@@ -59,7 +60,9 @@ export function NotificationWindow({ notification, onConfirm, onCancel }: Notifi
         <span className="bracket bl" />
         <span className="bracket br" />
 
-        <p className="notify-eyebrow mono">SYSTEM</p>
+        <p className="notify-eyebrow mono">
+          {notification.tone === 'levelup' ? 'LEVEL UP' : 'SYSTEM'}
+        </p>
         <p className="notify-title" id="notify-title">
           {notification.title}
         </p>

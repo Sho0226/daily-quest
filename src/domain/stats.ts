@@ -167,3 +167,32 @@ export function levelFromExp(exp: number, spentPoints: number): LevelState {
 export function spentPoints(allocated: StatBlock): number {
   return allocated.str + allocated.vit + allocated.agi + allocated.sen + allocated.int;
 }
+
+export type LevelUpEvent = {
+  from: number;
+  to: number;
+  gainedPoints: number;
+};
+
+/**
+ * Level is derived from experience, so a level-up is detected by comparing against what
+ * the user was last shown. Returns null when there is nothing to announce, and the level
+ * to silently adopt otherwise — an undo or an import can move it down, which is not news.
+ */
+export function detectLevelUp(
+  acknowledged: number | null,
+  current: number,
+): { event: LevelUpEvent | null; adopt: number | null } {
+  // Never initialised: adopt without announcing, so first run and post-migration are quiet.
+  if (acknowledged === null) return { event: null, adopt: current };
+  if (current < acknowledged) return { event: null, adopt: current };
+  if (current === acknowledged) return { event: null, adopt: null };
+  return {
+    event: {
+      from: acknowledged,
+      to: current,
+      gainedPoints: (current - acknowledged) * POINTS_PER_LEVEL,
+    },
+    adopt: null,
+  };
+}

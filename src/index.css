@@ -1655,3 +1655,56 @@ body::before {
   text-shadow: 0 0 10px rgba(94, 200, 255, 0.25);
   overflow-wrap: anywhere;
 }
+
+/* --- level up: gold, and louder than an ordinary system window --- */
+.notify.levelup {
+  border-color: rgba(232, 200, 116, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(232, 200, 116, 0.16),
+    0 0 80px rgba(232, 200, 116, 0.2),
+    inset 0 0 60px rgba(232, 200, 116, 0.05);
+}
+.notify.levelup .bracket {
+  border-color: var(--gold);
+  filter: drop-shadow(0 0 5px rgba(232, 200, 116, 0.8));
+}
+.notify.levelup .notify-eyebrow {
+  color: var(--gold);
+  letter-spacing: 0.4em;
+  text-shadow: 0 0 10px rgba(232, 200, 116, 0.5);
+}
+.notify.levelup .notify-title {
+  color: var(--gold);
+  font-size: 19px;
+  text-shadow: 0 0 16px rgba(232, 200, 116, 0.45);
+}
+.notify.levelup .notify-detail {
+  color: var(--gold);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  border-color: rgba(232, 200, 116, 0.35);
+  text-shadow: 0 0 12px rgba(232, 200, 116, 0.4);
+}
+.notify.levelup.animate::after {
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  box-shadow: 0 0 14px var(--gold);
+}
+.notify.levelup.animate {
+  animation: notify-open 0.26s cubic-bezier(0.16, 1, 0.3, 1), levelup-pulse 1.6s ease-out 0.3s;
+}
+
+@keyframes levelup-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(232, 200, 116, 0.16),
+      0 0 80px rgba(232, 200, 116, 0.2),
+      inset 0 0 60px rgba(232, 200, 116, 0.05);
+  }
+  40% {
+    box-shadow:
+      0 0 0 1px rgba(232, 200, 116, 0.3),
+      0 0 110px rgba(232, 200, 116, 0.36),
+      inset 0 0 70px rgba(232, 200, 116, 0.09);
+  }
+}

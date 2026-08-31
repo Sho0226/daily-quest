@@ -20,14 +20,22 @@ import {
   type QuestKey,
   type Targets,
 } from '../domain/quests';
-import { emptyStatBlock, type StatBlock, type StatKey } from '../domain/stats';
+import {
+  detectLevelUp,
+  emptyStatBlock,
+  levelFromExp,
+  spentPoints,
+  totalExp,
+  type StatBlock,
+  type StatKey,
+} from '../domain/stats';
 import { BACKUP_SCHEMA_VERSION, type Backup } from '../domain/backup';
 import { buildTitleContext, earnedTitles } from '../domain/titles';
 import { isAtHardCap } from '../domain/progression';
 import { DEFAULT_SETTINGS, type Settings } from './settings';
 
 const STORAGE_KEY = 'daily-quest-v1';
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 type UndoEntry = {
   dayKey: string;
@@ -44,6 +52,12 @@ export type PendingProgression = {
 /** A recovery swap the system has made and is announcing. */
 export type PendingRecoveryNotice = {
   dayKey: string;
+};
+
+export type PendingLevelUp = {
+  from: number;
+  to: number;
+  gainedPoints: number;
 };
 
 type PersistedState = {
@@ -68,6 +82,11 @@ type PersistedState = {
   daysAtHardCap: number;
   lastHardCapKey: string | null;
   lastExportAt: string | null;
+  /**
+   * Highest level already shown to the user. null means never initialised, which
+   * suppresses a spurious announcement on first run and after a migration.
+   */
+  acknowledgedLevel: number | null;
   /** Day key of the last progression evaluation, so it runs once per test day. */
   lastProgressionKey: string | null;
   lastSkipReason: SkipReason;
@@ -77,6 +96,7 @@ type DailyQuestStore = PersistedState & {
   undoStack: UndoEntry[];
   pendingProgression: PendingProgression | null;
   pendingRecoveryNotice: PendingRecoveryNotice | null;
+  pendingLevelUp: PendingLevelUp | null;
   completeInitialTest: (name: string, test: Omit<TestResult, 'date'>) => void;
   setName: (name: string) => void;
   recordTest: (test: Omit<TestResult, 'date'>) => void;
@@ -90,6 +110,8 @@ type DailyQuestStore = PersistedState & {
   acceptProgression: () => void;
   declineProgression: () => void;
   dismissRecoveryNotice: () => void;
+  syncLevel: () => void;
+  dismissLevelUp: () => void;
   allocatePoint: (stat: StatKey) => void;
   resetAllocation: () => void;
   updateSettings: (patch: Partial<Settings>) => void;
@@ -160,6 +182,7 @@ const initialState: PersistedState = {
   daysAtHardCap: 0,
   lastHardCapKey: null,
   lastExportAt: null,
+  acknowledgedLevel: null,
   lastProgressionKey: null,
   lastSkipReason: null,
 };
@@ -171,6 +194,7 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
       undoStack: [],
       pendingProgression: null,
       pendingRecoveryNotice: null,
+      pendingLevelUp: null,
 
       completeInitialTest: (name, test) =>
         set((state) => {
@@ -285,6 +309,32 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
 
       dismissRecoveryNotice: () => set({ pendingRecoveryNotice: null }),
 
+      /** Level is derived from experience, so a level-up is detected rather than fired. */
+      syncLevel: () =>
+        set((state) => {
+          if (!state.initialTest) return state;
+
+          const exp = totalExp({
+            days: state.days,
+            targets: state.targets,
+            runUnlocked: isRunUnlocked(state.week),
+            testDates: state.tests.map((t) => t.date),
+          });
+          const { level } = levelFromExp(exp, spentPoints(state.allocated));
+          const { event, adopt } = detectLevelUp(state.acknowledgedLevel, level);
+
+          if (adopt !== null) return { acknowledgedLevel: adopt };
+          if (!event) return state;
+          return { pendingLevelUp: event };
+        }),
+
+      dismissLevelUp: () =>
+        set((state) =>
+          state.pendingLevelUp
+            ? { acknowledgedLevel: state.pendingLevelUp.to, pendingLevelUp: null }
+            : state,
+        ),
+
       updateSettings: (patch) =>
         set((state) => ({ settings: { ...state.settings, ...patch } })),
 
@@ -360,6 +410,8 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
           undoStack: [],
           pendingProgression: null,
           pendingRecoveryNotice: null,
+          pendingLevelUp: null,
+          acknowledgedLevel: null,
         })),
 
       allocatePoint: (stat) =>
@@ -386,6 +438,7 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
           undoStack: [],
           pendingProgression: null,
           pendingRecoveryNotice: null,
+          pendingLevelUp: null,
         }),
 
       seedDummyHistory: (count) =>
@@ -432,6 +485,7 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
         daysAtHardCap: state.daysAtHardCap,
         lastHardCapKey: state.lastHardCapKey,
         lastExportAt: state.lastExportAt,
+        acknowledgedLevel: state.acknowledgedLevel,
         lastProgressionKey: state.lastProgressionKey,
         lastSkipReason: state.lastSkipReason,
       }),
@@ -462,6 +516,11 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
         if (version < 4) {
           const old = persisted as PersistedState;
           return { ...initialState, ...old, settings: initialState.settings };
+        }
+        // v6 tracked no acknowledged level; null makes syncLevel adopt it silently.
+        if (version < 7) {
+          const old = persisted as PersistedState;
+          return { ...initialState, ...old, acknowledgedLevel: null };
         }
         // v5 had no name.
         if (version < 6) {
