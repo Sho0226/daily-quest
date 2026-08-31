@@ -23,12 +23,29 @@ import {
 import { emptyStatBlock, type StatBlock, type StatKey } from '../domain/stats';
 
 const STORAGE_KEY = 'daily-quest-v1';
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 type UndoEntry = {
   dayKey: string;
   questKey: QuestKey;
   prevValue: number;
+};
+
+export type Settings = {
+  animations: boolean;
+  sound: boolean;
+  highContrast: boolean;
+};
+
+/** A target bump waiting on the user's confirmation in the notification window. */
+export type PendingProgression = {
+  week: number;
+  targets: Targets;
+};
+
+/** A recovery swap the system has made and is announcing. */
+export type PendingRecoveryNotice = {
+  dayKey: string;
 };
 
 type PersistedState = {
@@ -46,6 +63,7 @@ type PersistedState = {
   /** Manually assigned stat points, on top of the derived values. */
   allocated: StatBlock;
   titles: string[];
+  settings: Settings;
   /** Day key of the last progression evaluation, so it runs once per test day. */
   lastProgressionKey: string | null;
   lastSkipReason: SkipReason;
@@ -53,6 +71,8 @@ type PersistedState = {
 
 type DailyQuestStore = PersistedState & {
   undoStack: UndoEntry[];
+  pendingProgression: PendingProgression | null;
+  pendingRecoveryNotice: PendingRecoveryNotice | null;
   completeInitialTest: (test: Omit<TestResult, 'date'>) => void;
   recordTest: (test: Omit<TestResult, 'date'>) => void;
   increment: (questKey: QuestKey, amount: number) => void;
@@ -62,8 +82,14 @@ type DailyQuestStore = PersistedState & {
   setSharpPain: (value: boolean) => void;
   completeRecovery: () => void;
   runProgressionCheck: () => void;
+  acceptProgression: () => void;
+  declineProgression: () => void;
+  dismissRecoveryNotice: () => void;
   allocatePoint: (stat: StatKey) => void;
   resetAllocation: () => void;
+  updateSettings: (patch: Partial<Settings>) => void;
+  setDayBoundaryHour: (hour: number) => void;
+  setTestDayOfWeek: (day: number) => void;
   undo: () => void;
   reset: () => void;
   /** Dev only: fatigue and ability scores need 28 days before they mean anything. */
@@ -121,6 +147,7 @@ const initialState: PersistedState = {
   tests: [],
   allocated: emptyStatBlock(),
   titles: [],
+  settings: { animations: true, sound: true, highContrast: false },
   lastProgressionKey: null,
   lastSkipReason: null,
 };
@@ -130,6 +157,8 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
     (set) => ({
       ...initialState,
       undoStack: [],
+      pendingProgression: null,
+      pendingRecoveryNotice: null,
 
       completeInitialTest: (test) =>
         set((state) => {
@@ -176,9 +205,12 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
           const key = todayKeyOf(state);
           const record = recordFor(state, key);
           // The system swaps the day out itself; the user never presses a "rest" button.
-          const recovery = record.recovery || shouldSwapForRecovery(level);
+          const swapping = !record.recovery && shouldSwapForRecovery(level);
+          const recovery = record.recovery || swapping;
           return {
             days: { ...state.days, [key]: { ...record, doms: level, recovery } },
+            // Announced, not asked — declining would mean training through it.
+            pendingRecoveryNotice: swapping ? { dayKey: key } : state.pendingRecoveryNotice,
           };
         }),
 
@@ -213,14 +245,39 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
             return { lastProgressionKey: key, lastSkipReason: decision.reason };
           }
 
+          // Queued rather than applied: the notification window asks first.
           const nextWeek = state.week + 1;
           return {
-            week: nextWeek,
-            targets: targetsForWeek(state.initialTest, nextWeek),
+            pendingProgression: {
+              week: nextWeek,
+              targets: targetsForWeek(state.initialTest, nextWeek),
+            },
             lastProgressionKey: key,
             lastSkipReason: null,
           };
         }),
+
+      acceptProgression: () =>
+        set((state) => {
+          const pending = state.pendingProgression;
+          if (!pending) return state;
+          return {
+            week: pending.week,
+            targets: pending.targets,
+            pendingProgression: null,
+          };
+        }),
+
+      declineProgression: () => set({ pendingProgression: null }),
+
+      dismissRecoveryNotice: () => set({ pendingRecoveryNotice: null }),
+
+      updateSettings: (patch) =>
+        set((state) => ({ settings: { ...state.settings, ...patch } })),
+
+      setDayBoundaryHour: (hour) => set({ dayBoundaryHour: hour }),
+
+      setTestDayOfWeek: (day) => set({ testDayOfWeek: day }),
 
       allocatePoint: (stat) =>
         set((state) => ({
@@ -240,7 +297,13 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
           };
         }),
 
-      reset: () => set({ ...initialState, undoStack: [] }),
+      reset: () =>
+        set({
+          ...initialState,
+          undoStack: [],
+          pendingProgression: null,
+          pendingRecoveryNotice: null,
+        }),
 
       seedDummyHistory: (count) =>
         set((state) => {
@@ -281,6 +344,7 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
         tests: state.tests,
         allocated: state.allocated,
         titles: state.titles,
+        settings: state.settings,
         lastProgressionKey: state.lastProgressionKey,
         lastSkipReason: state.lastSkipReason,
       }),
@@ -306,6 +370,11 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
             allocated: emptyStatBlock(),
             titles: [],
           };
+        }
+        // v3 had no settings block.
+        if (version < 4) {
+          const old = persisted as PersistedState;
+          return { ...initialState, ...old, settings: initialState.settings };
         }
         return persisted as PersistedState;
       },
