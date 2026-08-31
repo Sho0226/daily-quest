@@ -9,6 +9,7 @@ import {
   totalExp,
   totalStats,
 } from '../domain/stats';
+import { TITLE_DEFS } from '../domain/titles';
 import { useDailyQuestStore } from '../store/useDailyQuestStore';
 
 const JOB = '無職';
@@ -40,6 +41,9 @@ export function StatusWindow() {
   const fatigue = computeFatigue(days, todayKey);
   const zone = fatigueZone(fatigue);
   const expPct = (level.expIntoLevel / level.expForNext) * 100;
+
+  const earnedNames = TITLE_DEFS.filter((t) => titles.includes(t.id)).map((t) => t.name);
+  const lockedTitles = TITLE_DEFS.filter((t) => !titles.includes(t.id));
 
   return (
     <div className="stage">
@@ -74,7 +78,7 @@ export function StatusWindow() {
           </div>
           <div className="identity-row">
             <dt>称号</dt>
-            <dd>{titles.length ? titles.join('、') : 'なし'}</dd>
+            <dd>{earnedNames.length ? earnedNames.join('、') : 'なし'}</dd>
           </div>
           <div className="identity-row">
             <dt>疲労度</dt>
@@ -123,6 +127,29 @@ export function StatusWindow() {
             敏捷性は5kmのタイムを計測すると加算されます。
           </p>
         )}
+
+        <section className="title-block">
+          <div className="stat-head">
+            <span className="stat-head-label">称号</span>
+            <span className="points mono">
+              {earnedNames.length} / {TITLE_DEFS.length}
+            </span>
+          </div>
+          <ul className="title-list">
+            {TITLE_DEFS.filter((t) => titles.includes(t.id)).map((title) => (
+              <li key={title.id} className="title-item earned">
+                <span className="title-name">{title.name}</span>
+                <span className="title-req">{title.requirement}</span>
+              </li>
+            ))}
+            {lockedTitles.map((title) => (
+              <li key={title.id} className="title-item">
+                <span className="title-name">???</span>
+                <span className="title-req">{title.requirement}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         {import.meta.env.DEV && <DevPanel />}
       </div>

@@ -1367,3 +1367,242 @@ body::before {
 :root[data-contrast='high'] body::before {
   display: none;
 }
+
+/* --- backup --- */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.backup-reminder {
+  margin-bottom: 10px;
+}
+
+.backup-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.backup-last {
+  margin: 8px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.backup-status {
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 8px 0 0;
+}
+.backup-status.ok {
+  color: var(--teal);
+}
+.backup-status.error {
+  color: var(--danger);
+}
+
+/* --- titles --- */
+.title-block {
+  margin-top: 26px;
+  border-top: 1px solid var(--border-faint);
+  padding-top: 16px;
+}
+
+.title-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border-faint);
+  border: 1px solid var(--border-faint);
+}
+
+.title-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--void-2);
+  padding: 9px 12px;
+}
+
+.title-name {
+  font-size: 13px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.title-item.earned .title-name {
+  color: var(--gold);
+  text-shadow: 0 0 10px rgba(232, 200, 116, 0.35);
+}
+
+.title-req {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: right;
+  line-height: 1.5;
+}
+
+/* --- history --- */
+.history-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+
+.history-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-faint);
+  background: var(--void-2);
+}
+
+.history-day {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.history-cell.state-cleared {
+  border-color: rgba(94, 200, 255, 0.6);
+  background: rgba(94, 200, 255, 0.16);
+  box-shadow: inset 0 0 12px rgba(94, 200, 255, 0.18);
+}
+.history-cell.state-cleared .history-day {
+  color: var(--text-primary);
+}
+
+.history-cell.state-recovery {
+  border-color: rgba(77, 208, 196, 0.55);
+  background: rgba(77, 208, 196, 0.13);
+}
+.history-cell.state-recovery .history-day {
+  color: var(--teal);
+}
+
+.history-cell.state-recorded {
+  border-color: var(--border-dim);
+  background: rgba(94, 200, 255, 0.04);
+}
+.history-cell.state-recorded .history-day {
+  color: var(--text-muted);
+}
+
+.history-cell.state-empty {
+  border-style: dashed;
+}
+
+.history-legend {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.history-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border: 1px solid var(--border-faint);
+  background: var(--void-2);
+}
+.legend-swatch.state-cleared {
+  border-color: rgba(94, 200, 255, 0.6);
+  background: rgba(94, 200, 255, 0.3);
+}
+.legend-swatch.state-recovery {
+  border-color: rgba(77, 208, 196, 0.55);
+  background: rgba(77, 208, 196, 0.28);
+}
+.legend-swatch.state-recorded {
+  border-color: var(--border-dim);
+}
+.legend-swatch.state-empty {
+  border-style: dashed;
+}
+
+.legend-count {
+  color: var(--text-dim);
+}
+
+/* --- monthly summary --- */
+.month-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.month-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.month-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.month-bar-track {
+  position: relative;
+  height: 10px;
+  background: var(--track);
+  border: 1px solid var(--border-faint);
+}
+
+.month-bar-recorded {
+  position: absolute;
+  inset: 0;
+  background: rgba(94, 200, 255, 0.18);
+}
+
+.month-bar-cleared {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #2d7ea8, var(--border-glow));
+  box-shadow: 0 0 8px rgba(94, 200, 255, 0.4);
+}
+
+.month-count {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.month-sep {
+  color: var(--text-dim);
+  margin: 0 2px;
+}
+
+.month-note {
+  margin: 4px 0 0;
+  text-align: right;
+}
+
+/* Four tabs need tighter labels on narrow screens. */
+@media (max-width: 380px) {
+  .tab-label {
+    font-size: 11px;
+  }
+  .tab-tag {
+    font-size: 8px;
+  }
+}

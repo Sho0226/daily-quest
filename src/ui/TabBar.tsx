@@ -1,8 +1,9 @@
-export type TabKey = 'quest' | 'status' | 'settings';
+export type TabKey = 'quest' | 'status' | 'history' | 'settings';
 
 const TABS: readonly { key: TabKey; label: string; tag: string }[] = [
   { key: 'quest', label: 'クエスト', tag: 'QUEST' },
   { key: 'status', label: 'ステータス', tag: 'STATUS' },
+  { key: 'history', label: '履歴', tag: 'LOG' },
   { key: 'settings', label: '設定', tag: 'CONFIG' },
 ];
 

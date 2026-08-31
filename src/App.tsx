@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { QUEST_DEFS } from './domain/quests';
 import { useDailyQuestStore } from './store/useDailyQuestStore';
+import { HistoryWindow } from './ui/HistoryWindow';
 import { InitialTest } from './ui/InitialTest';
 import { NotificationWindow } from './ui/NotificationWindow';
 import { QuestWindow } from './ui/QuestWindow';
@@ -11,11 +12,18 @@ import { TabBar, type TabKey } from './ui/TabBar';
 function App() {
   const initialTest = useDailyQuestStore((s) => s.initialTest);
   const highContrast = useDailyQuestStore((s) => s.settings.highContrast);
+  const days = useDailyQuestStore((s) => s.days);
+  const syncTitles = useDailyQuestStore((s) => s.syncTitles);
   const [tab, setTab] = useState<TabKey>('quest');
 
   useEffect(() => {
     document.documentElement.dataset.contrast = highContrast ? 'high' : 'normal';
   }, [highContrast]);
+
+  // Titles are derived from history, so re-check whenever a record changes.
+  useEffect(() => {
+    if (initialTest) syncTitles();
+  }, [days, initialTest, syncTitles]);
 
   if (!initialTest) return <InitialTest />;
 
@@ -24,6 +32,7 @@ function App() {
       <main className="app-main">
         {tab === 'quest' && <QuestWindow />}
         {tab === 'status' && <StatusWindow />}
+        {tab === 'history' && <HistoryWindow />}
         {tab === 'settings' && <SettingsWindow />}
       </main>
       <TabBar active={tab} onChange={setTab} />

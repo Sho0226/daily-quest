@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDailyQuestStore } from '../store/useDailyQuestStore';
+import { BackupSection } from './BackupSection';
 import { NotificationWindow } from './NotificationWindow';
 
 const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
@@ -88,6 +89,8 @@ export function SettingsWindow() {
             />
           </div>
         </section>
+
+        <BackupSection />
 
         <section className="setting-group">
           <h2 className="setting-heading">データ</h2>
