@@ -5,7 +5,7 @@ import { parseBackup } from '../backupSchema';
 const valid: Backup = {
   schemaVersion: 5,
   exportedAt: '2026-08-31T04:00:00.000Z',
-  name: '水篠 旬',
+  name: '山田 太郎',
   startedAt: '2026-08-01',
   dayBoundaryHour: 4,
   testDayOfWeek: 0,
@@ -84,7 +84,7 @@ describe('parseBackup', () => {
   it('keeps the name on a round trip', () => {
     const result = parseBackup(JSON.stringify(valid));
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.backup.name).toBe('水篠 旬');
+    if (result.ok) expect(result.backup.name).toBe('山田 太郎');
   });
 });
 
