@@ -1,12 +1,13 @@
-name: Deploy
+name: CI
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  deploy:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +25,34 @@ jobs:
 
       - run: npm run build
 
+  deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Read into env first: the secrets context can't be used in a step-level `if`.
+    env:
+      CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Skip deploy (Cloudflare secrets not configured)
+        if: env.CF_API_TOKEN == ''
+        run: |
+          echo "::notice::CLOUDFLARE_API_TOKEN is not set, so deployment was skipped."
+          echo "Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID under"
+          echo "Settings > Secrets and variables > Actions to enable deploys."
+
       - name: Deploy to Cloudflare Workers
+        if: env.CF_API_TOKEN != ''
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
