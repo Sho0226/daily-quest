@@ -21,20 +21,18 @@ import {
   type Targets,
 } from '../domain/quests';
 import { emptyStatBlock, type StatBlock, type StatKey } from '../domain/stats';
+import { BACKUP_SCHEMA_VERSION, type Backup } from '../domain/backup';
+import { buildTitleContext, earnedTitles } from '../domain/titles';
+import { isAtHardCap } from '../domain/progression';
+import { DEFAULT_SETTINGS, type Settings } from './settings';
 
 const STORAGE_KEY = 'daily-quest-v1';
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 type UndoEntry = {
   dayKey: string;
   questKey: QuestKey;
   prevValue: number;
-};
-
-export type Settings = {
-  animations: boolean;
-  sound: boolean;
-  highContrast: boolean;
 };
 
 /** A target bump waiting on the user's confirmation in the notification window. */
@@ -64,6 +62,10 @@ type PersistedState = {
   allocated: StatBlock;
   titles: string[];
   settings: Settings;
+  /** Days spent at the 50/50/50 · 5km cap, counted toward the final-goal unlock. */
+  daysAtHardCap: number;
+  lastHardCapKey: string | null;
+  lastExportAt: string | null;
   /** Day key of the last progression evaluation, so it runs once per test day. */
   lastProgressionKey: string | null;
   lastSkipReason: SkipReason;
@@ -90,6 +92,9 @@ type DailyQuestStore = PersistedState & {
   updateSettings: (patch: Partial<Settings>) => void;
   setDayBoundaryHour: (hour: number) => void;
   setTestDayOfWeek: (day: number) => void;
+  syncTitles: () => void;
+  exportBackup: () => Backup;
+  importBackup: (backup: Backup) => void;
   undo: () => void;
   reset: () => void;
   /** Dev only: fatigue and ability scores need 28 days before they mean anything. */
@@ -147,7 +152,10 @@ const initialState: PersistedState = {
   tests: [],
   allocated: emptyStatBlock(),
   titles: [],
-  settings: { animations: true, sound: true, highContrast: false },
+  settings: DEFAULT_SETTINGS,
+  daysAtHardCap: 0,
+  lastHardCapKey: null,
+  lastExportAt: null,
   lastProgressionKey: null,
   lastSkipReason: null,
 };
@@ -279,6 +287,72 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
 
       setTestDayOfWeek: (day) => set({ testDayOfWeek: day }),
 
+      /** Titles are derived, but persisted so an earned one is never taken back. */
+      syncTitles: () =>
+        set((state) => {
+          const key = todayKeyOf(state);
+          const runUnlocked = isRunUnlocked(state.week);
+
+          // Count one day per calendar day spent at the hard cap.
+          const atCap = isAtHardCap(state.targets);
+          const countedToday = state.lastHardCapKey === key;
+          const daysAtHardCap =
+            atCap && !countedToday ? state.daysAtHardCap + 1 : state.daysAtHardCap;
+          const lastHardCapKey = atCap ? key : state.lastHardCapKey;
+
+          const context = buildTitleContext({
+            days: state.days,
+            todayKey: key,
+            targets: state.targets,
+            runUnlocked,
+            daysAtHardCap,
+          });
+          const earned = earnedTitles(context).map((t) => t.id);
+          const titles = [...new Set([...state.titles, ...earned])];
+
+          return { titles, daysAtHardCap, lastHardCapKey };
+        }),
+
+      exportBackup: () => {
+        const state = useDailyQuestStore.getState();
+        const exportedAt = new Date().toISOString();
+        const backup: Backup = {
+          schemaVersion: BACKUP_SCHEMA_VERSION,
+          exportedAt,
+          startedAt: state.startedAt,
+          dayBoundaryHour: state.dayBoundaryHour,
+          testDayOfWeek: state.testDayOfWeek,
+          week: state.week,
+          initialTest: state.initialTest,
+          targets: state.targets,
+          days: state.days,
+          tests: state.tests,
+          allocated: state.allocated,
+          titles: state.titles,
+          settings: state.settings,
+        };
+        set({ lastExportAt: exportedAt });
+        return backup;
+      },
+
+      importBackup: (backup) =>
+        set(() => ({
+          startedAt: backup.startedAt,
+          dayBoundaryHour: backup.dayBoundaryHour,
+          testDayOfWeek: backup.testDayOfWeek,
+          week: backup.week,
+          initialTest: backup.initialTest,
+          targets: backup.targets,
+          days: backup.days,
+          tests: backup.tests,
+          allocated: backup.allocated,
+          titles: backup.titles,
+          settings: backup.settings,
+          undoStack: [],
+          pendingProgression: null,
+          pendingRecoveryNotice: null,
+        })),
+
       allocatePoint: (stat) =>
         set((state) => ({
           allocated: { ...state.allocated, [stat]: state.allocated[stat] + 1 },
@@ -345,6 +419,9 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
         allocated: state.allocated,
         titles: state.titles,
         settings: state.settings,
+        daysAtHardCap: state.daysAtHardCap,
+        lastHardCapKey: state.lastHardCapKey,
+        lastExportAt: state.lastExportAt,
         lastProgressionKey: state.lastProgressionKey,
         lastSkipReason: state.lastSkipReason,
       }),
@@ -375,6 +452,17 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
         if (version < 4) {
           const old = persisted as PersistedState;
           return { ...initialState, ...old, settings: initialState.settings };
+        }
+        // v4 had no titles tracking or export timestamp.
+        if (version < 5) {
+          const old = persisted as PersistedState;
+          return {
+            ...initialState,
+            ...old,
+            daysAtHardCap: 0,
+            lastHardCapKey: null,
+            lastExportAt: null,
+          };
         }
         return persisted as PersistedState;
       },
