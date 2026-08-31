@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "daily-quest",
+  "compatibility_date": "2026-03-01",
+  "assets": {
+    "directory": "./dist/",
+    // Client-side routing: every path serves the app shell.
+    "not_found_handling": "single-page-application"
+  }
+}
