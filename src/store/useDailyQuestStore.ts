@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { dayKey, dayOfWeek, daysBetween } from '../domain/date';
+import { dayKey, dayOfWeek, daysBetween, recentDayKeys } from '../domain/date';
 import { computeFatigue } from '../domain/fatigue';
 import { shouldSwapForRecovery } from '../domain/guard';
 import {
@@ -20,9 +20,10 @@ import {
   type QuestKey,
   type Targets,
 } from '../domain/quests';
+import { emptyStatBlock, type StatBlock, type StatKey } from '../domain/stats';
 
 const STORAGE_KEY = 'daily-quest-v1';
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 type UndoEntry = {
   dayKey: string;
@@ -40,6 +41,11 @@ type PersistedState = {
   initialTest: TestResult | null;
   targets: Targets;
   days: Record<string, DayRecord>;
+  /** Every weekly test, newest last. The initial test is the first entry. */
+  tests: TestResult[];
+  /** Manually assigned stat points, on top of the derived values. */
+  allocated: StatBlock;
+  titles: string[];
   /** Day key of the last progression evaluation, so it runs once per test day. */
   lastProgressionKey: string | null;
   lastSkipReason: SkipReason;
@@ -48,6 +54,7 @@ type PersistedState = {
 type DailyQuestStore = PersistedState & {
   undoStack: UndoEntry[];
   completeInitialTest: (test: Omit<TestResult, 'date'>) => void;
+  recordTest: (test: Omit<TestResult, 'date'>) => void;
   increment: (questKey: QuestKey, amount: number) => void;
   achieve: (questKey: QuestKey) => void;
   setValue: (questKey: QuestKey, value: number) => void;
@@ -55,8 +62,12 @@ type DailyQuestStore = PersistedState & {
   setSharpPain: (value: boolean) => void;
   completeRecovery: () => void;
   runProgressionCheck: () => void;
+  allocatePoint: (stat: StatKey) => void;
+  resetAllocation: () => void;
   undo: () => void;
   reset: () => void;
+  /** Dev only: fatigue and ability scores need 28 days before they mean anything. */
+  seedDummyHistory: (days: number) => void;
 };
 
 const INITIAL_TARGETS: Targets = { pushups: 0, situps: 0, squats: 0, run: 0 };
@@ -107,6 +118,9 @@ const initialState: PersistedState = {
   initialTest: null,
   targets: INITIAL_TARGETS,
   days: {},
+  tests: [],
+  allocated: emptyStatBlock(),
+  titles: [],
   lastProgressionKey: null,
   lastSkipReason: null,
 };
@@ -124,11 +138,21 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
           return {
             startedAt: key,
             initialTest: result,
+            tests: [result],
             week: 1,
             targets: initialTargets(result),
             lastProgressionKey: key,
             lastSkipReason: null,
           };
+        }),
+
+      recordTest: (test) =>
+        set((state) => {
+          const key = todayKeyOf(state);
+          const result: TestResult = { date: key, ...test };
+          // One test per day: re-measuring replaces the day's entry.
+          const tests = [...state.tests.filter((t) => t.date !== key), result];
+          return { tests };
         }),
 
       increment: (questKey, amount) =>
@@ -198,6 +222,13 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
           };
         }),
 
+      allocatePoint: (stat) =>
+        set((state) => ({
+          allocated: { ...state.allocated, [stat]: state.allocated[stat] + 1 },
+        })),
+
+      resetAllocation: () => set({ allocated: emptyStatBlock() }),
+
       undo: () =>
         set((state) => {
           const last = state.undoStack.at(-1);
@@ -210,6 +241,30 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
         }),
 
       reset: () => set({ ...initialState, undoStack: [] }),
+
+      seedDummyHistory: (count) =>
+        set((state) => {
+          const key = todayKeyOf(state);
+          const days = { ...state.days };
+          // Skip today so the current day stays yours to log.
+          for (const dk of recentDayKeys(key, count + 1).slice(0, -1)) {
+            if (days[dk]) continue;
+            const missed = Math.random() < 0.15;
+            if (missed) continue;
+            const sore = Math.random() < 0.1;
+            days[dk] = {
+              ...emptyDayRecord(),
+              pushups: Math.round(state.targets.pushups * (0.7 + Math.random() * 0.5)),
+              situps: Math.round(state.targets.situps * (0.7 + Math.random() * 0.5)),
+              squats: Math.round(state.targets.squats * (0.7 + Math.random() * 0.5)),
+              run: Math.round(state.targets.run * Math.random() * 10) / 10,
+              doms: (sore ? 3 : Math.floor(Math.random() * 3)) as DomsLevel,
+              recovery: sore,
+              recoveryDone: sore,
+            };
+          }
+          return { days };
+        }),
     }),
     {
       name: STORAGE_KEY,
@@ -223,6 +278,9 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
         initialTest: state.initialTest,
         targets: state.targets,
         days: state.days,
+        tests: state.tests,
+        allocated: state.allocated,
+        titles: state.titles,
         lastProgressionKey: state.lastProgressionKey,
         lastSkipReason: state.lastSkipReason,
       }),
@@ -237,6 +295,17 @@ export const useDailyQuestStore = create<DailyQuestStore>()(
             days[key] = { ...emptyDayRecord(), ...record };
           }
           return { ...initialState, days };
+        }
+        // v2 had no stat allocation or test history.
+        if (version < 3) {
+          const old = persisted as PersistedState;
+          return {
+            ...initialState,
+            ...old,
+            tests: old.initialTest ? [old.initialTest] : [],
+            allocated: emptyStatBlock(),
+            titles: [],
+          };
         }
         return persisted as PersistedState;
       },
